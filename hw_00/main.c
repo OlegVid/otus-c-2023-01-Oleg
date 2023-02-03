@@ -9,7 +9,7 @@
 #include "list_lib.h" 
 
 /*
- * modifier - function modifier for MAP 
+ * modifier - function modifier for MAP in this case multiply value member in all items 
  */
 static int modifier(int inp_value){
 	return inp_value * 5;
@@ -17,6 +17,7 @@ static int modifier(int inp_value){
 
 /*
  * is_even - filtering function for FILTER 
+ * filter for even values
  */
 static bool is_even(int value){
 	return (value % 2) == 0;
@@ -36,10 +37,12 @@ int main (void){
 	
 	pair* filtered = inv_list(filter(list, is_even));
 	pair* mapped =  inv_list(map(list,  modifier)); 
-	
+	pair* map_filtered = map(filter(list, is_even),modifier);
 	print_list(list,"initial list:");
 	print_list(filtered, "filtered list:") ;
-	print_list(mapped,"maped list:");
+	print_list(mapped,"maped (multiply value  on 5) list:");
+	print_list(map_filtered,"filtered and maped (multiply value  on 5) list:");
+	
 
 	return 0;
 }
