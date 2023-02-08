@@ -7,4 +7,5 @@ FILES = main.c \
 
 all:
 	$(CC) $(CFLAGS) $(FILES) -o $(TARGET)
-
+clean:
+	rm *.gch

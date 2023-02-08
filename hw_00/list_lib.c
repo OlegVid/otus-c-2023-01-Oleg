@@ -3,9 +3,6 @@
  * Author: Oleg Videnin
  * impleentation for list control functions
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include "list_lib.h"
 
 
