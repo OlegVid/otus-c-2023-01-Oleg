@@ -7,6 +7,9 @@
 /*
   struct for central header
 */
+
+#pragma pack(push,1)
+
 typedef struct {
         uint16_t made_by_ver;    /* Version made by. */
         uint16_t extract_ver;    /* Version needed to extract. */
@@ -28,7 +31,7 @@ typedef struct {
 
 
 /*
-  struct for local header name_len - always 28 (why ??)
+  struct for local header 
 */
 
 typedef struct  {
@@ -46,7 +49,7 @@ typedef struct  {
         const uint8_t *extra;
 }lfh_t;
 
-
+#pragma pack(pop)
 
 static uint8_t  sig_file_header[4] = {0x50,0x4b,0x01,0x02};
 static FILE *zip_file = NULL;
@@ -106,7 +109,7 @@ zip_result_t  zip_lib_file_open(char *filepath){
 	   if (sig_is_found(c,sig_file_header)){  // signature was found
 			int res = fread(&cfh, sizeof(cfh_t), 1, zip_file);
 			if (res > 0){
-				fseek(zip_file,-2,SEEK_CUR); // dont work proper without it (need to investigate)
+				
 				if (cfh.name_len >=STR_BUF_SIZE){ 
 					strcpy(buffer,error_msg);
 				}
