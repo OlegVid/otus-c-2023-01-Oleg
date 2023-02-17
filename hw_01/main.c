@@ -6,14 +6,25 @@
 */
 
 #include "zip_lib.h"
+#include <string.h>
 
+int disp_mode = 0;
+void pri_short_help_msg(void){
+printf("Usage:  hw_01 file [-l] \n");
+}
 
 int main (int argc, char **argv){
 char buffer[500];
 
 	if (argc < 2){ 
-		printf("No input file in args \n");
+		pri_short_help_msg();
 		return 0;
+	}
+
+	if (argc > 2){
+	     if(!strcmp(argv[2], "-l")) {
+		 disp_mode = 1;
+	     } 
 	}
 
 	switch(zip_lib_file_open(argv[1])){
@@ -30,9 +41,26 @@ char buffer[500];
 
 	for(int i = 0;i < zip_lib_get_header_count(); i++){ 
 		if (zip_get_header_filename(i,sizeof(buffer), buffer) >= 0){
-	 	printf("File # %d, name = %s \n",i,buffer);
+		switch(disp_mode){		
+			default:
+			case 0:
+				printf("%s\n",buffer);
+			break;
+			case 1:
+				printf("File # %d, name = %s \n",i,buffer);
+			break;
+		}
+	
 		} else {
-		  printf("File # %d, name = %s \n",i,"Filename exceed bufer size\n");
+			switch(disp_mode){
+				default:
+				case 0:
+					printf("%s\n","Filename exceed bufer size\n");
+				break;	
+				case 1:
+      					printf("File # %d, name = %s \n",i,"Filename exceed bufer size\n");
+				break;
+			}
 		}
 	 }
 

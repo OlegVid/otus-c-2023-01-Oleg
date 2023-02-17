@@ -107,20 +107,18 @@ zip_result_t  zip_lib_file_open(char *filepath){
 
 	while ((c = getc(zip_file)) != EOF){
 	   if (sig_is_found(c,sig_file_header)){  // signature was found
-			int res = fread(&cfh, sizeof(cfh_t), 1, zip_file);
-			if (res > 0){
-				
+				if (fread(&cfh, sizeof(cfh_t), 1, zip_file) > 0){
 				if (cfh.name_len >=STR_BUF_SIZE){ 
 					strcpy(buffer,error_msg);
+	                                add_new_item(buffer);
 				}
-				 else{ 
-					res = fread(buffer, cfh.name_len, 1, zip_file);
+			 	else{ 
+					if ( fread(buffer, cfh.name_len, 1, zip_file) > 0){ 
+						buffer[cfh.name_len] = '\0';
+						add_new_item(buffer);
+		}
 				}
-				if (res > 0){ 
-					buffer[cfh.name_len] = '\0';
-					add_new_item(buffer);
-				}
-
+				
 			}
 	   }
 	}
