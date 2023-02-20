@@ -16,14 +16,8 @@
 #endif
 
 
-typedef enum{ZL_ERR_FILE_NOT_FOUND = -2,ZL_ERR_FILE_NOT_ZIP = -1} zip_result_t;
+typedef enum{ZL_ERR_FILE_NOT_JOINED = -3, ZL_ERR_FILE_NOT_FOUND = -2,ZL_ERR_FILE_NOT_ZIP = -1} zip_result_t;
 
-zip_result_t  zip_lib_file_open(char *filepath);// open and read zip headers
-
+zip_result_t  zip_lib_file_open_and_list(char *filepath);// open and read zip headers
 int zip_lib_get_header_count(void); // return count of founded headers, -1 if no one
-int zip_get_header_filename(uint8_t header_count, uint16_t buf_max_size, char * buffer);
-
-
-
-
 

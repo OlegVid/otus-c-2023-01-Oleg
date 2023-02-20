@@ -45,27 +45,18 @@ typedef struct  {
         uint32_t uncomp_size;
         uint16_t name_len;
         uint16_t extra_len;
-        const uint8_t *name;
-        const uint8_t *extra;
 }lfh_t;
 
 #pragma pack(pop)
 
-static uint8_t  sig_file_header[4] = {0x50,0x4b,0x01,0x02};
+static uint8_t  sig_file_header[4] = {0x50,0x4b,0x03,0x04};
 static FILE *zip_file = NULL;
-static char** list_of_file = NULL;
-static uint16_t count_of_file = 0;
 static char* error_msg = "Filename exceed buffer length";
 
 /*
 add file name - to string list? for storage and further use
 */
-void add_new_item(char *filename){
-	count_of_file++;
-	list_of_file = (char**) realloc(list_of_file, count_of_file*sizeof(char*));
-	list_of_file[count_of_file-1] = (char*) malloc(strlen(filename) + 1);
-	strcpy(list_of_file[count_of_file-1], filename);
-}
+
 
 unsigned char sig_is_found(uint8_t inp, uint8_t* const signature){
 static int fsm = -1;
@@ -94,11 +85,12 @@ static int fsm = -1;
 }
 
 // open and read zip headers
-zip_result_t  zip_lib_file_open(char *filepath){
-	cfh_t cfh;
+zip_result_t  zip_lib_file_open_and_list(char *filepath){
+	lfh_t lfh;
 	char buffer[STR_BUF_SIZE];
 	int c;
-	count_of_file = 0;
+	int count_of_file = 0;
+        uint64_t count_of_byte = 0;
 
 	zip_file = fopen(filepath, "rb");
 	if (NULL == zip_file){
@@ -106,17 +98,23 @@ zip_result_t  zip_lib_file_open(char *filepath){
 	}
 
 	while ((c = getc(zip_file)) != EOF){
+		count_of_byte++;
 	   if (sig_is_found(c,sig_file_header)){  // signature was found
-				if (fread(&cfh, sizeof(cfh_t), 1, zip_file) > 0){
-				if (cfh.name_len >=STR_BUF_SIZE){ 
+				count_of_file++;
+
+                 if (count_of_byte <= sizeof(sig_file_header)){
+			return ZL_ERR_FILE_NOT_JOINED;   //check if PK signature at begin of file then file is pure zip (not joined) 
+		}
+				if (fread(&lfh, sizeof(lfh_t), 1, zip_file) > 0){
+				if (lfh.name_len >=STR_BUF_SIZE){ 
 					strcpy(buffer,error_msg);
-	                                add_new_item(buffer);
+	                                printf("%s \n",buffer);
 				}
 			 	else{ 
-					if ( fread(buffer, cfh.name_len, 1, zip_file) > 0){ 
-						buffer[cfh.name_len] = '\0';
-						add_new_item(buffer);
-		}
+					if (fread(buffer, lfh.name_len, 1, zip_file) > 0){ 
+						buffer[lfh.name_len] = '\0';
+						printf("%s \n",buffer);
+					}
 				}
 				
 			}
@@ -124,29 +122,6 @@ zip_result_t  zip_lib_file_open(char *filepath){
 	}
 	fclose(zip_file);
 	return (count_of_file > 0) ? count_of_file :  ZL_ERR_FILE_NOT_ZIP;
-}
-
-int zip_lib_get_header_count(void){
-	return count_of_file;
-}
-
-/*
-compare func for char** from internet 
-*/
-int cmp(const void* s1, const void* s2)
-{
-    const char** a = (const char**) s1;
-    const char** b = (const char**) s2;
-    return strcmp(*a, *b);
-}
-
-int zip_get_header_filename(uint8_t header_count, uint16_t buf_max_size, char * buffer){
-        qsort(list_of_file,count_of_file,sizeof(char *),cmp); // sorting filename list
-	if (strlen(list_of_file[header_count]) >= buf_max_size){
-		return -1;                             //control if buffer les than filename
-	}
-	strcpy(buffer, list_of_file[header_count]);
-	return 0;
 }
 
 
