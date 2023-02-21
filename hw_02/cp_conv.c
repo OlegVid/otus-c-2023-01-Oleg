@@ -113,8 +113,7 @@ uint16_t iso8859Map[256] = {
 
 //return utf sumbol length in bytes;
 static uint8_t
-len_of_sym (uint32_t utf_symbol)
-{
+len_of_sym (uint32_t utf_symbol){
   if (utf_symbol <= 0x7f)
     return 1;
   if (utf_symbol <= 0x7ff)
@@ -126,32 +125,22 @@ len_of_sym (uint32_t utf_symbol)
   return 0;
 }
 
-uint32_t
-cp1251chMap (uint8_t cp_1251_code)
-{
+uint32_t cp1251chMap (uint8_t cp_1251_code){
   return cp1251Map[cp_1251_code];
 }
 
-uint32_t
-koi8chMap (uint8_t koi8_code)
-{
+uint32_t koi8chMap (uint8_t koi8_code){
   return cpkoi8Map[koi8_code];
 }
 
-uint32_t
-iso8859chMap (uint8_t iso8859_code)
-{
+uint32_t iso8859chMap (uint8_t iso8859_code){
   return iso8859Map[iso8859_code];
 }
 
 
 
-int64_t
-cp_to_utf8 (conv_func_t cp_f, uint8_t * inp_buf, int64_t inp_buf_len,
-	    uint8_t * outp_buffer, int64_t out_buf_len)
-{
+int64_t cp_to_utf8 (conv_func_t cp_f, uint8_t* inp_buf, int64_t inp_buf_len, uint8_t* outp_buffer, int64_t out_buf_len){
   int64_t out_length = 0;
-
   for (int64_t i = 0; i < inp_buf_len; i++)
     {
       uint32_t temp_utf_code = cp_f (inp_buf[i]);
@@ -164,7 +153,6 @@ cp_to_utf8 (conv_func_t cp_f, uint8_t * inp_buf, int64_t inp_buf_len,
 	case 1:
 	  outp_buffer[out_length++] = (uint8_t) (0xFF & temp_utf_code);
 	  break;
-
 	case 2:
 	  outp_buffer[out_length++] =
 	    0xC0 | ((uint8_t) (0x1F & temp_utf_code >> 6));
@@ -172,7 +160,6 @@ cp_to_utf8 (conv_func_t cp_f, uint8_t * inp_buf, int64_t inp_buf_len,
 	    0x80 | ((uint8_t) (0x3F & (temp_utf_code)));
 
 	  break;
-
 	case 3:
 	  //untested !!!
 	  outp_buffer[out_length++] =
@@ -182,7 +169,6 @@ cp_to_utf8 (conv_func_t cp_f, uint8_t * inp_buf, int64_t inp_buf_len,
 	  outp_buffer[out_length++] =
 	    0x80 | ((uint8_t) (0x3F & temp_utf_code));
 	  break;
-
 	case 4:
 	  //untested !!!
 	  outp_buffer[out_length++] =

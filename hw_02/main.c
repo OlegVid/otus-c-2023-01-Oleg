@@ -66,14 +66,14 @@ int main (int argc, char **argv){
   uint8_t* outp_buffer = malloc (outp_buffer_size);
 
   if ((inp_buffer == NULL) | (outp_buffer == NULL)){
-      printf ("error memory allocation for file %s \n", argv[1]);
+      printf ("error while open file: %s \n", argv[1]);
       return -1;
     }
 
   FILE *inp_file = fopen (argv[1], "rb");
   int cnt = fread(inp_buffer, sizeof(uint8_t), inp_buffer_size, inp_file);
   if (cnt < inp_buffer_size){
-	      printf ("Error during read file\n");
+	      printf ("Error during read file : %s\n", argv[1]);
 		if (inp_buffer != NULL){free (inp_buffer);}
 		if (outp_buffer != NULL){free (outp_buffer);}
 	      return -1;
