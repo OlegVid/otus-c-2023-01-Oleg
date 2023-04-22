@@ -67,7 +67,8 @@ int main(int argc, char **argv) {
 	//printf("count = %zu \n",myh_table_get_count(mht_storage));
     for (size_t i = 0; i < myh_table_get_count(mht_storage); i++) {
         if (myh_table_index(mht_storage, i, testKey, &test_value) == MHT_OK) {
-		printf("%s %d\n",testKey,test_value);
+		//printf("%s %d\n",testKey,test_value);
+		printf("%-30s %-10d\n", testKey, test_value);
        	} 
     }
   free(word);
