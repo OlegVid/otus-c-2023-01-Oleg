@@ -8,23 +8,14 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "myh_tbl.h"
-#include "myh_tbl_test.h"
-
-#define PERFORM_UNIT_TEST 1
+#include "./mht_src/myh_tbl.h"
 
 void pri_short_help_msg(char *name) {
     printf("usage: %s filename\n", name);
 }
 
 int main(int argc, char **argv) {
-#if PERFORM_UNIT_TEST == 1
-    int res = test_myh_tbl_unit();
-    if (res != 0) {
-        printf("test_myh_tbl_unit fail !!!, code = %d  \n", res);
-        return res;
-    }  
-#endif
+
     mht_storage_t *mht_storage = myh_table_init(10000);
     if (mht_storage == NULL) {
         printf("Could not allocate memory\n");
