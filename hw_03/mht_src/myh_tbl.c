@@ -110,6 +110,7 @@ mht_storage_t *myh_table_init(size_t init_capacity) {
     mht_storage_t *mht = (mht_storage_t *) calloc(1,sizeof(mht_storage_t));
     if (mht == NULL) return NULL;
     mht->vault = (mht_t *)calloc(1,sizeof(mht_t));
+    if (mht->vault == NULL) return NULL;
     if (myhTableInit(mht->vault, init_capacity) == MHT_OK) {
         return mht;
     } else return NULL;
@@ -352,10 +353,6 @@ mht_result_t myh_table_index(mht_storage_t *mht, size_t index, char *key, int *v
     }
     mht_t *my_mht = mht->vault;
     my_hash_t hash_indx = my_mht->index_table[index];
-    //*key = calloc(strlen(my_mht->table[hash_indx].key),sizeof (char));
-	//if ((*key) == NULL){
-	//	return 	MHT_RES_ERR_MEMORY_OUT;
-	//}
     strcpy(key,my_mht->table[hash_indx].key);
     *value = my_mht->table[hash_indx].value;
     return MHT_OK;
