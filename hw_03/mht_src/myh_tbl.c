@@ -8,9 +8,7 @@
 typedef enum {
     NO_INDEX_FOUND, EMPTY_INDEX_FOUND, EXISTING_INDEX_FOUND
 } locate_t; // тип возвращаемого значения при поиске свободных индексов
-typedef enum {
-    VAULT_ONE, VAULT_TWO
-} current_vault_t; // тип для задания "текущего хранилища"
+
 typedef enum {
     MHT_ITEM_EMPTY, MHT_ITEM_BUSY = 101, MHT_ITEM_DELETED = 102
 } mht_state_t; // тип отображения статуса хранилища. пустой, занятый и удаленный (функция удаления пока не реализованна)
@@ -35,14 +33,10 @@ typedef struct {
 
 // Структура "хранилища" который состоит из двух подхранилищ, которые переключаются, когда происходит перехэширование таблицы (по достижению порога)
 struct mht_storage_t {
-    mht_t vault_one;
-    mht_t vault_two;
-    current_vault_t current_vault;
+    mht_t *vault;
 };
 
-
 int PRINT_DBG = 0;// печать отладочной информации (регулируется внешней функцией myh_table_dbg_msg
-
 /**
 * function myh_table_dbg_msg
 * brief Управляет включение выдачи отладочной информации через printf
@@ -52,7 +46,6 @@ int PRINT_DBG = 0;// печать отладочной информации (р�
 void myh_table_dbg_msg(bool enable_dbg) {
     PRINT_DBG = enable_dbg;
 }
-
 /**
 * function hash_func
 * brief хеш-функция для символьной строки, Возвращает значение в диапазоне от 0 до rage
@@ -71,42 +64,6 @@ my_hash_t hash_func(char *key, size_t range) {
     return hashf % range;
 }
 
-/**
-* function CurrVault
-* brief возвращает текущее используемое подхранилище
-* param mht_storage - хранилище, с которым и работаем
-* retval возвращает текущее используеое подхранилище хэш таблицы
-* comment  с текущим подхранилищем ним работают функции, при рехешифоровании даные с него копируются во вторичное подхранилище, а затем меняются роли хранилищ.
-*/
-static mht_t * CurrVault(mht_storage_t *mht_storage) {
-    return mht_storage->current_vault == VAULT_ONE ? &mht_storage->vault_one : &mht_storage->vault_two;
-}
-
-/**
-* function SecVault
-* brief возвращает вторичное подхранилище
-* param mht_storage - хранилище, с которым и работаем
-* retval возвращает вторичное, неиспользуеое подхранилище хэш таблиц
-* comment  вторичное подхранилище получает данные основного при рехешировании, а затем становится основным через функцию swap_CV
-*/
-static mht_t *SecVault(mht_storage_t *mht_storage) {
-    return mht_storage->current_vault == VAULT_ONE ? &mht_storage->vault_two : &mht_storage->vault_one;
-}
-
-/**
-* function  swap_CV
-* brief меняет ролями основное и вторичное подхранилище
-* param mht_storage - хранилище, с которым и работаем
-* retval void
-* comment используется в функции rehashTable
-*/
-static void swap_CV(mht_storage_t *mht_storage) {
-    if (mht_storage->current_vault == VAULT_ONE) {
-        mht_storage->current_vault = VAULT_TWO;
-    } else {
-        mht_storage->current_vault = VAULT_ONE;
-    }
-}
 void mhtFree(mht_t *mht) {
     if (mht == NULL) return;
     if (mht->table == NULL) return;
@@ -126,11 +83,13 @@ void mhtFree(mht_t *mht) {
 */
 static mht_result_t myhTableInit(mht_t *mht, size_t count) {
     if (PRINT_DBG) printf("init size : %zu \n", count);
-    //  free(mht->table);
-    mhtFree(mht); // очищаем таблицу, если в ней что было
-    mht->table = calloc(count, sizeof(mht_item_t));
-    mht->index_table = calloc(count,sizeof(my_hash_t));
+    mht->table = (mht_item_t *)calloc(count, sizeof(mht_item_t));
     if (mht->table == NULL) {
+        if (PRINT_DBG) printf("MHT_RES_ERROR_ALLOC");
+        return MHT_RES_ERROR_ALLOC;
+    }
+    mht->index_table = (my_hash_t *)calloc(count,sizeof(my_hash_t));
+    if (mht->index_table == NULL) {
         if (PRINT_DBG) printf("MHT_RES_ERROR_ALLOC");
         return MHT_RES_ERROR_ALLOC;
     }
@@ -150,8 +109,8 @@ static mht_result_t myhTableInit(mht_t *mht, size_t count) {
 mht_storage_t *myh_table_init(size_t init_capacity) {
     mht_storage_t *mht = (mht_storage_t *) calloc(1,sizeof(mht_storage_t));
     if (mht == NULL) return NULL;
-    mht->current_vault = VAULT_ONE;
-    if (myhTableInit(&mht->vault_one, init_capacity) == MHT_OK) {
+    mht->vault = (mht_t *)calloc(1,sizeof(mht_t));
+    if (myhTableInit(mht->vault, init_capacity) == MHT_OK) {
         return mht;
     } else return NULL;
 }
@@ -272,27 +231,31 @@ bool isReachRehash(mht_t *mht) {
 * * param old_mht -текущее подхранилище, new_mht - новое подхранилище
 * retval mht_result_t - результат выполнения if (PRINT_DBG)
 */
-mht_result_t rehashTable(mht_t *old_mht, mht_t *new_mht) {
+mht_t * rehashTable(mht_t *old_mht) {
+    mht_t *new_mht = (mht_t *)malloc(sizeof(mht_t ));
+    if (new_mht == NULL){
+        return NULL;
+    }
     if (PRINT_DBG) printf("rehash started count = %zu, threshold = %zu\n", old_mht->count, old_mht->rehash_treshold);
     if (myhTableInit(new_mht, old_mht->allocated_count*default_table_increment_k + default_table_increment) != MHT_OK) {
         if (PRINT_DBG)   printf("MHT_REHASH_INIT_ERROR\n");
-        return MHT_REHASH_ERROR;
+        return NULL;
     }
-    for (size_t i = 0; i < old_mht->allocated_count; i++) {
-        if (old_mht->table[i].state == MHT_ITEM_BUSY) {
-            if (PRINT_DBG) printf("rehash insert %zu |  ", i);
-            if (myhTableInsert(new_mht, old_mht->table[i].key, old_mht->table[i].value) != MHT_OK) {
+    my_hash_t tmp_hash;
+    for (size_t i = 0; i < old_mht->count; i++) {
+        tmp_hash = old_mht->index_table[i];
+        if (old_mht->table[tmp_hash].state == MHT_ITEM_BUSY) {
+            if (myhTableInsert(new_mht, old_mht->table[tmp_hash].key, old_mht->table[tmp_hash].value) != MHT_OK) {
                 if (PRINT_DBG) printf("MHT_REHASH_ERROR\n");
-                return MHT_REHASH_ERROR;
+                return NULL;
             }
             if (PRINT_DBG) printf(" *** ins fin, all_cnt: %zu  cnt: %zu \n", new_mht->allocated_count, new_mht->count);
         }
     }
     if (PRINT_DBG) printf("end_rehash old_count %zu new count %zu \n", old_mht->count, new_mht->count);
     if (PRINT_DBG) printf("end_rehash old_count %zu new count %zu \n", old_mht->allocated_count, new_mht->allocated_count);
-    //	free(old_mht->table);
     if (PRINT_DBG) printf("end_free\n");
-    return MHT_OK;
+    return new_mht;
 }
 
 /**
@@ -303,18 +266,20 @@ mht_result_t rehashTable(mht_t *old_mht, mht_t *new_mht) {
 * retval mht_result_t - результат выполнения
 */
 mht_result_t myh_table_insert(mht_storage_t *mht, char *key, int value) {
-    if (isReachRehash(CurrVault(mht))) {
+    if (isReachRehash(mht->vault)) {
         if (PRINT_DBG) printf("rehash start\n");
-        mht_result_t tmp_res = rehashTable(CurrVault(mht), SecVault(mht));
+        mht_t * new_vault =  rehashTable(mht->vault);
         if (PRINT_DBG)
-            printf("rehsh_result, alloc_cnt %zu count %zu  \n", SecVault(mht)->allocated_count, SecVault(mht)->count);
-        if (tmp_res != MHT_OK) {
+            printf("rehsh_result, alloc_cnt %zu count %zu  \n", new_vault->allocated_count, new_vault->count);
+        if (new_vault == NULL) {
             if (PRINT_DBG) printf("rehsh_error \n");
-            return tmp_res;
+            return MHT_RES_ERROR_ALLOC;
         }
-        swap_CV(mht);
+        mhtFree(mht->vault);
+	free(mht->vault);
+        mht->vault = new_vault;
     }
-    return myhTableInsert(CurrVault(mht), key, value);
+    return myhTableInsert(mht->vault, key, value);
 }
 
 /**
@@ -324,7 +289,7 @@ mht_result_t myh_table_insert(mht_storage_t *mht, char *key, int value) {
 * retval mht_result_t - результат выполнения.
 */
 mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int **value) {
-    mht_t *my_mht = CurrVault(mht); // получаем текущую рабочее подхранилище.
+    mht_t *my_mht = mht->vault; // получаем текущую рабочее подхранилище.
     my_hash_t hash_index = hash_func(key, my_mht->allocated_count);
 	*value = NULL;
     if (hash_index > my_mht->allocated_count) {
@@ -366,18 +331,18 @@ mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int **value) {
 
 
 void myh_table_free(mht_storage_t *mht) {
-    mhtFree(&mht->vault_one);
-    mhtFree(&mht->vault_two);
+    mhtFree(mht->vault);
+    free(mht->vault);
     free(mht);
 }
 
 size_t myh_table_get_count(mht_storage_t *mht) {
-    mht_t *my_mht = CurrVault(mht);
+    mht_t *my_mht = mht->vault;
     return my_mht->count;
 }
 
 size_t myh_table_get_capacity(mht_storage_t *mht) {
-    mht_t *my_mht = CurrVault(mht);
+    mht_t *my_mht = mht->vault;
     return my_mht->allocated_count;
 }
 
@@ -385,7 +350,7 @@ mht_result_t myh_table_index(mht_storage_t *mht, size_t index, char *key, int *v
     if (index >= myh_table_get_count(mht)){
         return MHT_RES_KEY_NOT_FOUND;
     }
-    mht_t *my_mht = CurrVault(mht);
+    mht_t *my_mht = mht->vault;
     my_hash_t hash_indx = my_mht->index_table[index];
     //*key = calloc(strlen(my_mht->table[hash_indx].key),sizeof (char));
 	//if ((*key) == NULL){
@@ -395,5 +360,3 @@ mht_result_t myh_table_index(mht_storage_t *mht, size_t index, char *key, int *v
     *value = my_mht->table[hash_indx].value;
     return MHT_OK;
 }
-
- 
