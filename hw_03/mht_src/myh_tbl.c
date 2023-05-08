@@ -115,6 +115,7 @@ void mhtFree(mht_t *mht) {
             free(mht->table[i].key);
         }
     }
+    free(mht->index_table);
     free(mht->table);
 }
 /**
@@ -319,13 +320,13 @@ mht_result_t myh_table_insert(mht_storage_t *mht, char *key, int value) {
 /**
 * function myh_table_lookup
 * brief вннешняя функция выполнени поиск элемента в хранилище 
-*  mht - объект, хранилище таблице. key- ключ, value указатель куда прописывается-значение.
+*  mht - объект, хранилище таблице. key- ключ, value указатель на указатель куда прописывается-укащатель на поле value в паре ключ- значение.
 * retval mht_result_t - результат выполнения.
 */
-mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int *value) {
+mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int **value) {
     mht_t *my_mht = CurrVault(mht); // получаем текущую рабочее подхранилище.
     my_hash_t hash_index = hash_func(key, my_mht->allocated_count);
-	*value = 0;
+	*value = NULL;
     if (hash_index > my_mht->allocated_count) {
         if (PRINT_DBG) printf("MHT_RES_HASH_INCORRECT\n");
         return MHT_RES_HASH_INCORRECT;
@@ -337,7 +338,7 @@ mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int *value) {
         return MHT_RES_KEY_NOT_FOUND;
     // если ключи совпадают - то копируем зачение и выходим из функции, возвращая MHT_OK
     if (strcmp(my_mht->table[hash_index].key, key) == 0) {
-        *value = my_mht->table[hash_index].value;
+        *value = &my_mht->table[hash_index].value;
         return MHT_OK;
     }
     if (PRINT_DBG) printf("myh_table_lookup-1\n");
@@ -346,7 +347,7 @@ mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int *value) {
 		return MHT_RES_KEY_NOT_FOUND;
         }
         if ((strcmp(my_mht->table[i].key, key) == 0)) {
-		*value = my_mht->table[i].value;
+		*value = &my_mht->table[i].value;
 		return MHT_OK;
         }
     }
@@ -356,7 +357,7 @@ mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int *value) {
             return MHT_RES_KEY_NOT_FOUND;
         }
         if ((strcmp(my_mht->table[i].key, key) == 0)) {
-            *value = my_mht->table[i].value;
+            *value = &my_mht->table[i].value;
             return MHT_OK;
         }
     }

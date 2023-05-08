@@ -10,20 +10,21 @@
 #include <stdlib.h>
 #include "./mht_src/myh_tbl.h"
 
+#define MAX_WORD_SIZE (500)
+
 void pri_short_help_msg(char *name) {
     printf("usage: %s filename\n", name);
 }
 
 int main(int argc, char **argv) {
-
+    if (argc != 2) {
+        pri_short_help_msg(argv[0]);
+        return 0;
+    }
     mht_storage_t *mht_storage = myh_table_init(10000);
     if (mht_storage == NULL) {
         printf("Could not allocate memory\n");
         return -2;
-    }
-    if (argc != 2) {
-        pri_short_help_msg(argv[0]);
-        return 0;
     }
 
     FILE *inp_file = fopen(argv[1], "r");
@@ -31,28 +32,28 @@ int main(int argc, char **argv) {
         printf("Could not open file %s\n", argv[1]);
         return -1;
     }
-    char *word = (char *)calloc(1, sizeof(char));
+    char word[MAX_WORD_SIZE];
     int ch;
-    int value;
+    int * value;
     size_t char_count = 0;
     while ((ch = fgetc(inp_file)) != EOF) {
         //isalpha - не работает с utf-8 - поэтому три функции заменители
-        if (isspace(ch) || ispunct(ch) || isdigit(ch)) {
+        if (isspace(ch) || ispunct(ch) || isdigit(ch) || (char_count >= MAX_WORD_SIZE)) {
             if (char_count > 0) {
                 word[char_count] = '\0';
-                myh_table_lookup(mht_storage, word, &value);
-                value++;
-                myh_table_insert(mht_storage, word, value);
+               if (myh_table_lookup(mht_storage, word, &value) == MHT_OK){
+                   (*value)++;
+               } else {
+                   myh_table_insert(mht_storage, word, 1);
+               }
                 char_count = 0;
             }
         } else {
-            word = (char *) realloc(word, (char_count + 1) * sizeof(char));
             word[char_count] = (char) tolower(ch);
             char_count++;
         }
     }
     fclose(inp_file);
-
     char testKey[1000];
 	int test_value;
 	//printf("count = %zu \n",myh_table_get_count(mht_storage));
@@ -62,7 +63,6 @@ int main(int argc, char **argv) {
 		printf("%-30s %-10d\n", testKey, test_value);
        	} 
     }
-  free(word);
   myh_table_free(mht_storage);
   return 0;
 }

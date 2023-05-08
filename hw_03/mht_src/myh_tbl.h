@@ -20,7 +20,7 @@ mht_storage_t *myh_table_init(size_t init_capacity); // инициализаци
 size_t myh_table_get_count(mht_storage_t *mht);
 size_t myh_table_get_capacity(mht_storage_t *mht);
 mht_result_t myh_table_insert(mht_storage_t *mht, char *key,int value); // добавление значения или его модификация, если такой ключ уже есть
-mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int *value); // получение значение по ключу
+mht_result_t myh_table_lookup(mht_storage_t *mht, char *key, int **value); // получение значение по ключу
 mht_result_t myh_table_index(mht_storage_t *mht, size_t index,char *key, int *value); // получение значение по индексу
 void myh_table_free(mht_storage_t *mht);
 

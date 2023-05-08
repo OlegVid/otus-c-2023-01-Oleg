@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
         printf("test_myh_tbl_unit fail !!!, code = %d  \n", res);
         return res;
     }  
-if (argc > 1){
+if (argc > 1){  // any args - mean verbouse
  printf("%s test successefull\n", argv[0]);
 }
  return 0;
