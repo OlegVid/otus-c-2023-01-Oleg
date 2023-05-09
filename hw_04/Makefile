@@ -1,6 +1,6 @@
 TARGET = hw_04
 CC = gcc
-CFLAGS = -DCURL_STATICLIB -lcurl -Wall -Wextra -Wpedantic -std=c11 -O2 
+CFLAGS = -DCURL_STATICLIB -lcurl -Wall -Wextra -Wpedantic -std=c11 -O2 -g
 LDFLAGS = -L/usr/local/ssl/lib
 LIBS = -lcurl 
 

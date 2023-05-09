@@ -57,6 +57,7 @@ void pri_short_help_msg(char *name) {
  * так как ее функции корректно отрабатывают данную ситуацию
 */
 void print_parsed_json_hourly_data(char *description, struct json_object *j_hourly_element) {
+
     struct json_object *j_tempC;
     struct json_object *j_weatherDesc;
     struct json_object *j_weatherDesc_element;
@@ -81,6 +82,7 @@ void print_parsed_json_hourly_data(char *description, struct json_object *j_hour
     printf("Ветер: %s ", win_dir_conv(json_object_get_string(j_winddir16Point)));
     printf("%s км/час, ", json_object_get_string(j_windspeedKmph));
     printf("%s.\n", json_object_get_string(j_weather_value));
+
 }
 
 /**
@@ -91,6 +93,7 @@ void print_parsed_json_hourly_data(char *description, struct json_object *j_hour
  * так как ее функции корректно отрабатывают данную ситуацию
 */
 void print_parsed_json_wttr_data(char *json_data) {
+
 // variables for json obj
     struct json_object *j_nearest_area;
     struct json_object *j_areaName;
@@ -100,7 +103,7 @@ void print_parsed_json_wttr_data(char *json_data) {
     struct json_object *j_weather_element;
     struct json_object *j_date;
     struct json_object *j_hourly;
-    struct json_object *j_hourly_element;
+    struct json_object **j_hourly_element;
     struct json_object *j_time;
 
     if (json_data == NULL){
@@ -128,25 +131,30 @@ void print_parsed_json_wttr_data(char *json_data) {
 
     size_t len = json_object_array_length(j_hourly);                       // extract hourly weather array length (8 - now) but can change
     printf("Прогноз погоды на: %s  %s \n", json_object_get_string(j_date), json_object_get_string(j_areaValue));
-
+    j_hourly_element = calloc(len, sizeof(*j_hourly_element));
+    if (j_hourly_element == NULL){
+        fprintf(stderr, "[-] Failed parse JSON, answer: %s\n", json_data);
+        exit(-6);
+    }
     for (size_t i = 0; i < len; i++) {
+        j_hourly_element[i] = json_object_array_get_idx(j_hourly, i);       // get i element of hourly array
 
-        j_hourly_element = json_object_array_get_idx(j_hourly, i);       // get i element of hourly array
-
-        json_object_object_get_ex(j_hourly_element, "time", &j_time);     // extract time obj, we will print only night, morning, day, evning values
+        json_object_object_get_ex(j_hourly_element[i], "time", &j_time);     // extract time obj, we will print only night, morning, day, evning values
         if (strcmp(json_object_get_string(j_time), "300") == 0) {
-            print_parsed_json_hourly_data("Ночь: ", j_hourly_element);
+            print_parsed_json_hourly_data("Ночь: ", j_hourly_element[i]);
         }
         if (strcmp(json_object_get_string(j_time), "900") == 0) {
-            print_parsed_json_hourly_data("Утро: ", j_hourly_element);
+           print_parsed_json_hourly_data("Утро: ", j_hourly_element[i]);
         }
         if (strcmp(json_object_get_string(j_time), "1200") == 0) {
-            print_parsed_json_hourly_data("День: ", j_hourly_element);
+           print_parsed_json_hourly_data("День: ", j_hourly_element[i]);
         }
         if (strcmp(json_object_get_string(j_time), "1800") == 0) {
-            print_parsed_json_hourly_data("Вечер:", j_hourly_element);
+            print_parsed_json_hourly_data("Вечер:", j_hourly_element[i]);
         }
     }
+  json_object_put(j_wttr);
+  free(j_hourly_element);
 }
 
 
@@ -175,6 +183,7 @@ int main(int argc, char **argv) {
         exit(-3);
     }
     sprintf(url, "https://ru.wttr.in/%s?format=j1", argv[1]);
+
     // функции рботы curl из примеров
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
@@ -187,11 +196,19 @@ int main(int argc, char **argv) {
 
     if (res != CURLE_OK) {
         fprintf(stderr, "[-] Не могу загрузить страницу \n[+] erro: %d, Error : %s\n", res, curl_easy_strerror(res));
+        curl_easy_cleanup(curl);
+    	free(url);
+    	free(chunk.memory); 
         exit(-2);
     }
     // если дошли сюда, значит данные загрузились
     print_parsed_json_wttr_data(chunk.memory);
+
     curl_easy_cleanup(curl);
+    curl_global_cleanup();
+
+    free(url);
+    free(chunk.memory);  
     return 0;
 }
 
