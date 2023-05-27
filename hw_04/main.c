@@ -85,6 +85,40 @@ void print_parsed_json_hourly_data(char *description, struct json_object *j_hour
 
 }
 
+uint8_t yandex_json_town(char *json_data) {
+
+// variables for json obj
+    struct json_object *j_first;
+    struct json_object *j_response;
+    struct json_object *j_GeoObjectCollection;
+    struct json_object *j_metaDataProperty;
+    struct json_object *j_GeocoderResponseMetaData;
+    struct json_object *j_found;
+    struct json_object *j_suggest;		
+    if (json_data == NULL){
+        fprintf(stderr, "[-] Failed parse JSON data \n");
+        exit(-4);
+    }
+
+    j_first = json_tokener_parse(json_data);                //first parse
+
+    if (j_first == NULL){
+        fprintf(stderr, "[-] Failed parse JSON, answer: %s\n", json_data);
+        exit(-5);
+    }
+
+   json_object_object_get_ex(j_first, "response", &j_response);                         
+   json_object_object_get_ex(j_response, "GeoObjectCollection", &j_GeoObjectCollection); 
+   json_object_object_get_ex(j_GeoObjectCollection, "metaDataProperty", &j_metaDataProperty); 
+   json_object_object_get_ex(j_metaDataProperty, "GeocoderResponseMetaData", &j_GeocoderResponseMetaData); 
+   json_object_object_get_ex(j_GeocoderResponseMetaData, "found", &j_found); 
+   json_object_object_get_ex(j_GeocoderResponseMetaData, "suggest", &j_suggest); 
+  // printf("ya = %s\n", json_object_get_string(j_GeocoderResponseMetaData));
+   uint8_t ans =  ((json_object_get_int(j_found) > 0)&&(j_suggest == NULL))?1:0;
+   json_object_put(j_first);
+   return ans;
+}
+
 /**
 * function print_parsed_json_wttr_data
 * brief функция которая и выводит оговоренные данные для распарсенного  json документа
@@ -159,6 +193,10 @@ void print_parsed_json_wttr_data(char *json_data) {
 
 
 int main(int argc, char **argv) {
+  if (argc != 2) {
+        pri_short_help_msg(argv[0]);
+        return 0;
+    }
     struct MemoryStruct chunk;  // объект в памяти куда функции curl будут выводить загружаемые данные
 
     chunk.memory = malloc(1);
@@ -175,6 +213,8 @@ int main(int argc, char **argv) {
     }
 
     CURLcode res;
+    
+
     // вычисляем размер url и вставляем в него город из параметра вызова.
     char *url = calloc(strlen("https://wttr.in/?format=j1") + strlen(argv[1]) + 20, sizeof(char));
 
@@ -182,16 +222,41 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[-] Failed Initializing Curl step 2\n");
         exit(-3);
     }
+
+
     sprintf(url, "https://ru.wttr.in/%s?format=j1", argv[1]);
 
     // функции рботы curl из примеров
-    curl_easy_setopt(curl, CURLOPT_URL, url);
+   
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
     /* send all data to this function  */
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
     /* we pass our 'chunk' struct to the callback function */
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) &chunk);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+
+     //check town correct name
+     char town_url[1000];
+     sprintf(town_url, "https://geocode-maps.yandex.ru/1.x/?apikey=d1f98bee-6185-4ce9-9d45-b630575fa51b&geocode=%s&format=json&results=1&kind=locality", argv[1]);
+ curl_easy_setopt(curl, CURLOPT_URL, town_url);
+    res = curl_easy_perform(curl);
+	if (res != CURLE_OK) {
+		fprintf(stderr, "[-] Не могу загрузить страницу %s \n[+] erro: %d, Error : %s\n",town_url, res, curl_easy_strerror(res));
+		curl_easy_cleanup(curl);
+	    	free(url);
+	    	free(chunk.memory); 
+		exit(-2);
+	    }
+//printf("check %s\n",chunk.memory);
+  if (yandex_json_town(chunk.memory) == 0){
+     printf("Город %s не найден !\n",argv[1]);
+     return -1;
+  }
+//printf("try %s \n",url);
+    free(chunk.memory); 
+    chunk.memory = malloc(1);
+    chunk.size = 0;
+    curl_easy_setopt(curl, CURLOPT_URL, url);
     res = curl_easy_perform(curl);
 
     if (res != CURLE_OK) {
